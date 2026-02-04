@@ -10,29 +10,39 @@ import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { COMPANY, SOCIAL_LINKS } from "@/lib/constants";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, removeItem, updateQuantity, totalPrice, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [agree, setAgree] = useState(false);
+
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!agree) {
+      toast.error("Please accept Terms & Conditions and Privacy Policy to continue.");
+      return;
+    }
+
     // Create WhatsApp message with order details
     const orderDetails = items
       .map((item) => `• ${item.name} x ${item.quantity} = ₹${(item.price * item.quantity).toLocaleString()}`)
       .join("\n");
-    
+
     const message = `🛒 *New Order from ${COMPANY.name}*\n\n${orderDetails}\n\n*Total: ₹${totalPrice.toLocaleString()}*\n\nPayment: Cash on Delivery`;
-    
+
     const whatsappUrl = `https://wa.me/${COMPANY.phoneClean}?text=${encodeURIComponent(message)}`;
-    
+
     toast.success("Order placed successfully! We'll contact you shortly.");
     clearCart();
     window.open(whatsappUrl, "_blank");
     navigate("/");
   };
+
 
   if (items.length === 0) {
     return (
@@ -87,11 +97,11 @@ const Checkout = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number *</Label>
-                    <Input 
-                      id="phone" 
-                      type="tel" 
-                      placeholder="+91 XXXXX XXXXX" 
-                      required 
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+91 XXXXX XXXXX"
+                      required
                       pattern="[0-9+\s-]+"
                     />
                   </div>
@@ -145,10 +155,38 @@ const Checkout = () => {
                   </RadioGroup>
                 </div>
 
+                {/* Terms & Conditions */}
+                <div className="pt-2">
+                  <div className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30">
+                    <Checkbox
+                      id="agree"
+                      checked={agree}
+                      onCheckedChange={(value) => setAgree(value === true)}
+                    />
+                    <Label htmlFor="agree" className="text-sm leading-relaxed cursor-pointer">
+                      I agree to the{" "}
+                      <Link to="/terms" className="text-primary underline underline-offset-4">
+                        Terms & Conditions
+                      </Link>{" "}
+                      and{" "}
+                      <Link to="/privacy-policy" className="text-primary underline underline-offset-4">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </Label>
+                  </div>
+                </div>
+
                 <div className="pt-4">
-                  <Button type="submit" className="w-full btn-primary-gradient" size="lg">
+                  <Button
+                    type="submit"
+                    className="w-full btn-primary-gradient"
+                    size="lg"
+                    disabled={!agree}
+                  >
                     Place Order
                   </Button>
+
                 </div>
               </form>
             </div>
