@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Search, Phone, Mail, ShoppingCart, Menu, X, ChevronDown } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Search, Phone, Mail, ShoppingCart, Menu, X, ChevronDown, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -12,15 +12,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { COMPANY, NAV_LINKS, CATEGORIES, SOCIAL_LINKS } from "@/lib/constants";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 import { Badge } from "@/components/ui/badge";
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { totalItems, toggleCart } = useCart();
+  const { wishlistCount } = useWishlist();
 
   const isActive = (href: string) => location.pathname === href;
+
+  const handleSearch = () => {
+    const trimmed = searchQuery.trim();
+    if (trimmed) {
+      navigate(`/products?search=${encodeURIComponent(trimmed)}`);
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full">
@@ -78,12 +95,33 @@ export function Header() {
                   className="pl-10 pr-4 w-full bg-muted border-0 focus-visible:ring-primary"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                 />
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* Wishlist */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                asChild
+              >
+                <Link to="/products?wishlist=true">
+                  <Heart className="h-5 w-5" />
+                  {wishlistCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                    >
+                      {wishlistCount}
+                    </Badge>
+                  )}
+                </Link>
+              </Button>
+
               {/* Cart */}
               <Button
                 variant="ghost"
@@ -135,6 +173,7 @@ export function Header() {
                         className="pl-10"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={handleSearchKeyDown}
                       />
                     </div>
 

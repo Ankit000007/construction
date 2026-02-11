@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Filter, Grid3X3, LayoutList, ChevronDown, Search } from "lucide-react";
+import { Filter, Grid3X3, LayoutList, ChevronDown, Search, PackageSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,20 +20,50 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ProductCard } from "@/components/products/ProductCard";
 import { CATEGORIES, FEATURED_PRODUCTS } from "@/lib/constants";
+import { useWishlist } from "@/contexts/WishlistContext";
+
+type PriceRange = "under-500" | "500-2000" | "2000-5000" | "above-5000";
+
+const PRICE_RANGES: { id: PriceRange; label: string; min: number; max: number }[] = [
+  { id: "under-500", label: "Under ₹500", min: 0, max: 500 },
+  { id: "500-2000", label: "₹500 - ₹2,000", min: 500, max: 2000 },
+  { id: "2000-5000", label: "₹2,000 - ₹5,000", min: 2000, max: 5000 },
+  { id: "above-5000", label: "Above ₹5,000", min: 5000, max: Infinity },
+];
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") || "");
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     const category = searchParams.get("category");
     return category ? [category] : [];
   });
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<PriceRange[]>([]);
+  const [showInStock, setShowInStock] = useState(true);
+  const [showOutOfStock, setShowOutOfStock] = useState(true);
+  const [showWishlistOnly, setShowWishlistOnly] = useState(() => searchParams.get("wishlist") === "true");
+  const { wishlist } = useWishlist();
+
+  // Sync search param to searchQuery when URL changes
+  useEffect(() => {
+    const urlSearch = searchParams.get("search") || "";
+    if (urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch);
+    }
+    const wishlistParam = searchParams.get("wishlist") === "true";
+    setShowWishlistOnly(wishlistParam);
+  }, [searchParams]);
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     let products = [...FEATURED_PRODUCTS];
+
+    // Wishlist filter
+    if (showWishlistOnly) {
+      products = products.filter((p) => wishlist.includes(p.id));
+    }
 
     // Category filter
     if (selectedCategories.length > 0) {
@@ -48,6 +78,23 @@ const Products = () => {
           p.name.toLowerCase().includes(query) ||
           p.category.toLowerCase().includes(query)
       );
+    }
+
+    // Price range filter
+    if (selectedPriceRanges.length > 0) {
+      const ranges = PRICE_RANGES.filter((r) => selectedPriceRanges.includes(r.id));
+      products = products.filter((p) =>
+        ranges.some((r) => p.price >= r.min && p.price < r.max)
+      );
+    }
+
+    // Availability filter
+    if (showInStock && !showOutOfStock) {
+      products = products.filter((p) => p.inStock);
+    } else if (!showInStock && showOutOfStock) {
+      products = products.filter((p) => !p.inStock);
+    } else if (!showInStock && !showOutOfStock) {
+      products = [];
     }
 
     // Sort
@@ -67,7 +114,7 @@ const Products = () => {
     }
 
     return products;
-  }, [selectedCategories, searchQuery, sortBy]);
+  }, [selectedCategories, searchQuery, sortBy, selectedPriceRanges, showInStock, showOutOfStock, showWishlistOnly, wishlist]);
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories((prev) =>
@@ -75,6 +122,24 @@ const Products = () => {
         ? prev.filter((c) => c !== categoryId)
         : [...prev, categoryId]
     );
+  };
+
+  const togglePriceRange = (rangeId: PriceRange) => {
+    setSelectedPriceRanges((prev) =>
+      prev.includes(rangeId)
+        ? prev.filter((r) => r !== rangeId)
+        : [...prev, rangeId]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setSelectedCategories([]);
+    setSelectedPriceRanges([]);
+    setShowInStock(true);
+    setShowOutOfStock(true);
+    setSearchQuery("");
+    setShowWishlistOnly(false);
+    setSearchParams({});
   };
 
   const FiltersContent = () => (
@@ -107,16 +172,17 @@ const Products = () => {
       <div>
         <h3 className="font-semibold mb-3">Price Range</h3>
         <div className="space-y-2">
-          {["Under ₹500", "₹500 - ₹2,000", "₹2,000 - ₹5,000", "Above ₹5,000"].map(
-            (range) => (
-              <label key={range} className="flex items-center gap-3 cursor-pointer group">
-                <Checkbox />
-                <span className="text-sm group-hover:text-primary transition-colors">
-                  {range}
-                </span>
-              </label>
-            )
-          )}
+          {PRICE_RANGES.map((range) => (
+            <label key={range.id} className="flex items-center gap-3 cursor-pointer group">
+              <Checkbox
+                checked={selectedPriceRanges.includes(range.id)}
+                onCheckedChange={() => togglePriceRange(range.id)}
+              />
+              <span className="text-sm group-hover:text-primary transition-colors">
+                {range.label}
+              </span>
+            </label>
+          ))}
         </div>
       </div>
 
@@ -125,13 +191,19 @@ const Products = () => {
         <h3 className="font-semibold mb-3">Availability</h3>
         <div className="space-y-2">
           <label className="flex items-center gap-3 cursor-pointer group">
-            <Checkbox defaultChecked />
+            <Checkbox
+              checked={showInStock}
+              onCheckedChange={(v) => setShowInStock(v === true)}
+            />
             <span className="text-sm group-hover:text-primary transition-colors">
               In Stock
             </span>
           </label>
           <label className="flex items-center gap-3 cursor-pointer group">
-            <Checkbox />
+            <Checkbox
+              checked={showOutOfStock}
+              onCheckedChange={(v) => setShowOutOfStock(v === true)}
+            />
             <span className="text-sm group-hover:text-primary transition-colors">
               Out of Stock
             </span>
@@ -143,7 +215,7 @@ const Products = () => {
       <Button
         variant="outline"
         className="w-full"
-        onClick={() => setSelectedCategories([])}
+        onClick={clearAllFilters}
       >
         Clear All Filters
       </Button>
@@ -160,7 +232,9 @@ const Products = () => {
               Home
             </Link>
             <span className="text-muted-foreground">/</span>
-            <span className="text-foreground font-medium">Products</span>
+            <span className="text-foreground font-medium">
+              {showWishlistOnly ? "Wishlist" : "Products"}
+            </span>
           </nav>
         </div>
       </div>
@@ -181,7 +255,7 @@ const Products = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-2xl font-heading font-bold text-foreground">
-                  All Products
+                  {showWishlistOnly ? "My Wishlist" : "All Products"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   {filteredProducts.length} products found
@@ -254,8 +328,23 @@ const Products = () => {
             </div>
 
             {/* Active Filters */}
-            {selectedCategories.length > 0 && (
+            {(selectedCategories.length > 0 || showWishlistOnly) && (
               <div className="flex flex-wrap gap-2 mb-6">
+                {showWishlistOnly && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      setShowWishlistOnly(false);
+                      searchParams.delete("wishlist");
+                      setSearchParams(searchParams);
+                    }}
+                  >
+                    Wishlist Only
+                    <span className="text-muted-foreground">×</span>
+                  </Button>
+                )}
                 {selectedCategories.map((cat) => {
                   const category = CATEGORIES.find((c) => c.id === cat);
                   return (
@@ -295,16 +384,19 @@ const Products = () => {
               </div>
             ) : (
               <div className="text-center py-16">
+                <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
+                  <PackageSearch className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-1">No products found</h3>
                 <p className="text-muted-foreground">
-                  No products found matching your criteria.
+                  {showWishlistOnly
+                    ? "Your wishlist is empty. Start adding products you love!"
+                    : "No products found matching your criteria. Try adjusting your filters."}
                 </p>
                 <Button
                   variant="link"
                   className="mt-2"
-                  onClick={() => {
-                    setSelectedCategories([]);
-                    setSearchQuery("");
-                  }}
+                  onClick={clearAllFilters}
                 >
                   Clear all filters
                 </Button>

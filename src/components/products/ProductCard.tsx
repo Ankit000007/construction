@@ -2,6 +2,7 @@ import { Star, ShoppingCart, Heart, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
@@ -33,6 +34,9 @@ export function ProductCard({
   isNew,
 }: ProductCardProps) {
   const { addItem } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
+
+  const wishlisted = isInWishlist(id);
 
   const discount = originalPrice
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
@@ -50,6 +54,13 @@ export function ProductCard({
       image,
     });
     toast.success(`${name} added to cart!`);
+  };
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(id);
+    toast.success(wishlisted ? "Removed from wishlist" : "Added to wishlist");
   };
 
   return (
@@ -76,13 +87,14 @@ export function ProductCard({
           <Button
             variant="secondary"
             size="icon"
-            className="h-8 w-8 rounded-full bg-white shadow-md hover:bg-primary hover:text-primary-foreground"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
+            className={`h-8 w-8 rounded-full shadow-md ${
+              wishlisted
+                ? "bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600"
+                : "bg-white hover:bg-primary hover:text-primary-foreground"
+            }`}
+            onClick={handleToggleWishlist}
           >
-            <Heart className="h-4 w-4" />
+            <Heart className={`h-4 w-4 ${wishlisted ? "fill-current" : ""}`} />
           </Button>
           <Button
             variant="secondary"

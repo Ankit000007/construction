@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin, Clock, Send, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,36 @@ import { COMPANY, SOCIAL_LINKS } from "@/lib/constants";
 import { toast } from "sonner";
 
 const Contact = () => {
+  const formRef = useRef<HTMLFormElement>(null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Thank you for your message! We'll get back to you soon.");
+    const form = e.target as HTMLFormElement;
+    const name = (form.querySelector("#name") as HTMLInputElement).value;
+    const phone = (form.querySelector("#phone") as HTMLInputElement).value;
+    const email = (form.querySelector("#email") as HTMLInputElement).value;
+    const subject = (form.querySelector("#subject") as HTMLInputElement).value;
+    const message = (form.querySelector("#message") as HTMLTextAreaElement).value;
+
+    const waMessage = [
+      `*New Enquiry from ${COMPANY.name} Website*`,
+      ``,
+      `*Name:* ${name}`,
+      `*Phone:* ${phone}`,
+      email ? `*Email:* ${email}` : "",
+      subject ? `*Subject:* ${subject}` : "",
+      ``,
+      `*Message:*`,
+      message,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const whatsappUrl = `https://wa.me/${COMPANY.phoneClean}?text=${encodeURIComponent(waMessage)}`;
+
+    toast.success("Opening WhatsApp to send your message...");
+    window.open(whatsappUrl, "_blank");
+    formRef.current?.reset();
   };
 
   return (
@@ -32,7 +60,7 @@ const Contact = () => {
           {/* Contact Form */}
           <div className="bg-card p-6 lg:p-8 rounded-xl border">
             <h2 className="text-2xl font-heading font-bold mb-6">Send us a Message</h2>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name *</Label>
@@ -62,7 +90,7 @@ const Contact = () => {
               </div>
               <Button type="submit" className="w-full btn-primary-gradient gap-2">
                 <Send className="h-4 w-4" />
-                Send Message
+                Send via WhatsApp
               </Button>
             </form>
           </div>

@@ -18,13 +18,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 import { toast } from "sonner";
-import { FEATURED_PRODUCTS, SOCIAL_LINKS, COMPANY } from "@/lib/constants";
+import { FEATURED_PRODUCTS, SOCIAL_LINKS, COMPANY, TESTIMONIALS } from "@/lib/constants";
+import { ProductCard } from "@/components/products/ProductCard";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
 
   // Find product (in real app, this would be an API call)
   const product = FEATURED_PRODUCTS.find((p) => p.id === id) || FEATURED_PRODUCTS[0];
@@ -32,6 +35,13 @@ const ProductDetail = () => {
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
+
+  const wishlisted = isInWishlist(product.id);
+
+  // Related products: same category, excluding current
+  const relatedProducts = FEATURED_PRODUCTS.filter(
+    (p) => p.category === product.category && p.id !== product.id
+  ).slice(0, 4);
 
   const handleAddToCart = () => {
     addItem({
@@ -43,6 +53,36 @@ const ProductDetail = () => {
       image: product.image,
     });
     toast.success(`${product.name} added to cart!`);
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: product.name,
+      text: `Check out ${product.name} at ${COMPANY.name} - ₹${product.price.toLocaleString()} ${product.unit}`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (err) {
+      // User cancelled share or clipboard failed - try clipboard as fallback
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Link copied to clipboard!");
+      } catch {
+        toast.error("Unable to share. Please copy the URL manually.");
+      }
+    }
+  };
+
+  const handleToggleWishlist = () => {
+    toggleWishlist(product.id);
+    toast.success(wishlisted ? "Removed from wishlist" : "Added to wishlist");
   };
 
   return (
@@ -66,31 +106,14 @@ const ProductDetail = () => {
 
       <div className="container-custom py-8">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Product Images */}
-          <div className="space-y-4">
+          {/* Product Image */}
+          <div>
             <div className="aspect-square rounded-xl bg-card border overflow-hidden">
               <img
                 src={product.image}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
-            </div>
-            {/* Thumbnail gallery placeholder */}
-            <div className="flex gap-3">
-              {[1, 2, 3, 4].map((i) => (
-                <button
-                  key={i}
-                  className={`w-20 h-20 rounded-lg bg-card border overflow-hidden ${
-                    i === 1 ? "ring-2 ring-primary" : ""
-                  }`}
-                >
-                  <img
-                    src={product.image}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
             </div>
           </div>
 
@@ -150,8 +173,8 @@ const ProductDetail = () => {
 
             {/* Description */}
             <p className="text-muted-foreground">
-              Premium quality {product.name.toLowerCase()} from trusted manufacturers. 
-              Ideal for all types of construction projects. Complies with industry standards 
+              Premium quality {product.name.toLowerCase()} from trusted manufacturers.
+              Ideal for all types of construction projects. Complies with industry standards
               and backed by quality assurance.
             </p>
 
@@ -187,12 +210,17 @@ const ProductDetail = () => {
               </Button>
 
               {/* Wishlist */}
-              <Button variant="outline" size="icon">
-                <Heart className="h-5 w-5" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleToggleWishlist}
+                className={wishlisted ? "text-red-500 border-red-200 hover:text-red-600" : ""}
+              >
+                <Heart className={`h-5 w-5 ${wishlisted ? "fill-current" : ""}`} />
               </Button>
 
               {/* Share */}
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={handleShare}>
                 <Share2 className="h-5 w-5" />
               </Button>
             </div>
@@ -257,8 +285,8 @@ const ProductDetail = () => {
             <TabsContent value="description" className="mt-6">
               <div className="prose max-w-none">
                 <p className="text-muted-foreground">
-                  {product.name} is a premium quality construction material sourced from 
-                  leading manufacturers. It meets all industry standards and is suitable 
+                  {product.name} is a premium quality construction material sourced from
+                  leading manufacturers. It meets all industry standards and is suitable
                   for residential, commercial, and industrial construction projects.
                 </p>
                 <h4 className="font-semibold mt-4 mb-2">Key Features:</h4>
@@ -292,17 +320,42 @@ const ProductDetail = () => {
               </div>
             </TabsContent>
             <TabsContent value="reviews" className="mt-6">
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  Customer reviews will be displayed here.
-                </p>
-                <Button variant="outline" className="mt-4">
-                  Write a Review
-                </Button>
+              <div className="space-y-6">
+                {TESTIMONIALS.map((review) => (
+                  <div key={review.id} className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+                        {review.avatar}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{review.name}</p>
+                        <p className="text-xs text-muted-foreground">{review.role}</p>
+                      </div>
+                      <div className="ml-auto flex items-center gap-1">
+                        {Array.from({ length: review.rating }).map((_, i) => (
+                          <Star key={i} className="h-4 w-4 fill-accent text-accent" />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{review.content}</p>
+                  </div>
+                ))}
               </div>
             </TabsContent>
           </Tabs>
         </div>
+
+        {/* Related Products */}
+        {relatedProducts.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-heading font-bold mb-6">Related Products</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+              {relatedProducts.map((p) => (
+                <ProductCard key={p.id} {...p} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -11,13 +11,18 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
-const API_URL = "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const ADMIN_PASSWORD = "increnation2024";
+const AUTH_KEY = "admin_authenticated";
 
 interface Transaction {
   orderId: string;
@@ -85,7 +90,67 @@ const settlementConfig: Record<string, { label: string; color: string }> = {
   settled: { label: "Settled", color: "bg-green-100 text-green-700" },
 };
 
+function PasswordGate({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      localStorage.setItem(AUTH_KEY, "true");
+      onAuthenticated();
+    } else {
+      setError(true);
+      setPassword("");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-card p-8 rounded-xl border w-full max-w-sm">
+        <div className="flex items-center justify-center mb-6">
+          <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="h-7 w-7 text-primary" />
+          </div>
+        </div>
+        <h1 className="text-xl font-heading font-bold text-center mb-1">
+          Admin Access
+        </h1>
+        <p className="text-sm text-muted-foreground text-center mb-6">
+          Enter password to access the dashboard
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="admin-password">Password</Label>
+            <Input
+              id="admin-password"
+              type="password"
+              placeholder="Enter admin password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(false);
+              }}
+              autoFocus
+              required
+            />
+            {error && (
+              <p className="text-sm text-destructive">Incorrect password. Please try again.</p>
+            )}
+          </div>
+          <Button type="submit" className="w-full btn-primary-gradient">
+            Access Dashboard
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const Admin = () => {
+  const [authenticated, setAuthenticated] = useState(
+    () => localStorage.getItem(AUTH_KEY) === "true"
+  );
   const [summary, setSummary] = useState<Summary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState("all");
@@ -115,8 +180,10 @@ const Admin = () => {
   }, [filter]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (authenticated) {
+      fetchData();
+    }
+  }, [fetchData, authenticated]);
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
     setSelectedOrders((prev) => {
@@ -218,6 +285,10 @@ const Admin = () => {
     });
   };
 
+  if (!authenticated) {
+    return <PasswordGate onAuthenticated={() => setAuthenticated(true)} />;
+  }
+
   const unsettledInSelection = transactions.filter(
     (t) =>
       selectedOrders.has(t.orderId) &&
@@ -237,17 +308,29 @@ const Admin = () => {
               Manage transactions and request on-demand settlements
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={fetchData}
-            disabled={loading}
-            className="gap-2"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                localStorage.removeItem(AUTH_KEY);
+                setAuthenticated(false);
+              }}
+            >
+              Logout
+            </Button>
+            <Button
+              variant="outline"
+              onClick={fetchData}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Summary Cards */}
