@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { COMPANY, SOCIAL_LINKS } from "@/lib/constants";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const PAYMENT_SERVER_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const PAYMENT_SERVER_URL = import.meta.env.VITE_API_URL || "";
 
 const Checkout = () => {
   const navigate = useNavigate();

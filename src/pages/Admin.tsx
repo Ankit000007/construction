@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 const ADMIN_PASSWORD = "increnation2024";
 const AUTH_KEY = "admin_authenticated";
 

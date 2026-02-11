@@ -43,7 +43,7 @@ function rateLimit({ windowMs = 60000, max = 10, message = "Too many requests, p
 // Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "https://increnationconstruction.in",
     credentials: true,
   })
 );

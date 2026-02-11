@@ -1,4 +1,13 @@
+# Proxy API requests to the Render backend
+# Update RENDER_BACKEND_URL after deploying the server on Render
 [[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+  from = "/api/*"
+  to = "https://increnation-payment-server.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# SPA fallback - must be last
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
