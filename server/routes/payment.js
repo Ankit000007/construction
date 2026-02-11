@@ -67,11 +67,12 @@ router.post("/initiate", async (req, res) => {
     console.log(`Payment initiated: ${orderId} | Amount: ₹${paytmParams.TXN_AMOUNT} | Customer: ${customerName}`);
 
     // Return URL to our own redirect page (frontend redirects here)
+    const serverBaseUrl = process.env.SERVER_URL || `${req.protocol}://${req.get("host")}`;
     res.json({
       success: true,
       orderId: orderId,
       amount: paytmParams.TXN_AMOUNT,
-      paymentUrl: `http://localhost:${process.env.PORT || 5000}/api/payment/redirect/${orderId}`,
+      paymentUrl: `${serverBaseUrl}/api/payment/redirect/${orderId}`,
     });
   } catch (error) {
     console.error("Payment initiation error:", error);
